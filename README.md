@@ -13,3 +13,6 @@ However, you can set up a [custom domain mapping](https://cloud.google.com/appen
 Guide: https://www.simoahava.com/google-cloud/create-cookie-rewrite-web-service-google-cloud/
 
 Video: https://youtu.be/cmRrSeR51tc
+
+
+[Lourenço]: Precisa criar um App Engine no Cloud Console.
