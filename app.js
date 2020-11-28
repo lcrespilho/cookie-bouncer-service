@@ -1,52 +1,38 @@
+require('@google-cloud/debug-agent').start({ allowExpressions: true });
 const express = require('express');
 const cookieParser = require('cookie-parser');
-const cors = require('cors');
 
 const app = express();
-app.use(cookieParser());
-app.use(express.json());
+app.use(cookieParser()); // req headers cookies => req.cookies
 
-// Add all the hosts that will make requests to the service
-const allowedHosts = [
-  'https://www.mydomain.com'
-];
-
-const corsOptions = {
-  origin: (origin, cb) => {
-    if (allowedHosts.indexOf(origin) > -1) {
-      cb(null, true);
-    } else {
-      cb(new Error(`CORS error! Attempt to reach API from ${origin}`));
-    }
-  },
-  methods: 'POST',
-  credentials: true
-};
-
-app.options('/', cors(corsOptions));
-
-app.post('/', cors(corsOptions), (req, res, next) => {
-  const msg = req.body;
-  const cookies = Array.isArray(msg) ? msg : [msg];
-  const hasSet = [];
-  cookies.forEach(c => {
-    if (typeof c !== 'object') return;
-    if (!c.hasOwnProperty('name') || !c.hasOwnProperty('value')) {
-      return;
-    }
-    hasSet.push(c.name);
-    res.cookie(c.name, c.value, c.options);
+app.post('/', (req, res) => {
+  let bodyStr = '';
+  req.on('data', chunk => bodyStr += chunk);
+  req.on('end', () => {
+    let rewriteRequests = JSON.parse(bodyStr);
+    console.log('cookie rewrite requests:', rewriteRequests);
+    rewriteRequests.forEach(cookie => {
+      if (typeof cookie !== 'object') return;
+      if (!cookie.name) return;
+      if (cookie.value) {
+        res.cookie(cookie.name, cookie.value, cookie.options);
+      } else if (req.cookies[cookie.name]) {
+        res.cookie(cookie.name, req.cookies[cookie.name], {
+          path: '/',
+          domain: 'lourenco.tk',
+          maxAge: 1000 * 60 * 60 * 24 * 365 * 10, // 10 anos
+          sameSite: 'None',
+          secure: true
+        });
+      }
+    });
+    res.sendStatus(204);
   });
-
-  res.status(200).json({msg: `Processed cookies: ${hasSet}`});
 });
 
 const PORT = process.env.PORT || '8080';
-/* istanbul ignore next */
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`App listening on port ${PORT}`);
   });
 }
-
-module.exports = app;
